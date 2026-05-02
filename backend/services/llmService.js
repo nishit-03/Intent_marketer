@@ -1,13 +1,14 @@
 const Groq = require('groq-sdk');
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+const groq = process.env.GROQ_API_KEY 
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY })
+  : null;
 
 /**
  * Extract structured features from ad title and description using Groq LLaMA
  */
 async function extractAdFeatures(title, description) {
+  if (!groq) return fallbackExtract(title, description);
   try {
     const prompt = `You are an advertising intelligence system. Analyze the following ad and extract structured metadata.
 
