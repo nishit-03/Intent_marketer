@@ -1,0 +1,17 @@
+{
+  "feature_names": [
+    "pages_visited",
+    "time_spent",
+    "scroll_depth",
+    "category_match",
+    "intent_score",
+    "comparison_count",
+    "product_views",
+    "intent_velocity",
+    "reread_score",
+    "engagement_depth",
+    "hover_rate",
+    "max_scroll_depth",
+    "category_affinity_strength"
+  ]
+}

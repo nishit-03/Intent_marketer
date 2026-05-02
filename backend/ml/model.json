@@ -1,0 +1,81 @@
+{
+  "model_type": "logistic_regression",
+  "feature_names": [
+    "pages_visited",
+    "time_spent",
+    "scroll_depth",
+    "category_match",
+    "intent_score",
+    "comparison_count",
+    "product_views",
+    "intent_velocity",
+    "reread_score",
+    "engagement_depth",
+    "hover_rate",
+    "max_scroll_depth",
+    "category_affinity_strength"
+  ],
+  "coefficients": [
+    -0.055136,
+    -0.001083,
+    0.081924,
+    0.441394,
+    0.172201,
+    0.002011,
+    0.131494,
+    0.199331,
+    0.07905,
+    0.270271,
+    -0.00684,
+    0.028298,
+    0.257411
+  ],
+  "intercept": -0.907569,
+  "scaler": {
+    "mean": [
+      8.0045,
+      305.7955,
+      0.518905,
+      0.17025,
+      0.50146,
+      2.2,
+      2.17175,
+      0.095911,
+      0.506262,
+      0.495985,
+      3.961748,
+      0.65305,
+      0.195017
+    ],
+    "scale": [
+      4.257109,
+      171.377842,
+      0.274825,
+      0.375852,
+      0.098562,
+      1.670479,
+      1.676679,
+      0.115355,
+      0.287052,
+      0.289527,
+      2.307484,
+      0.265153,
+      0.230258
+    ]
+  },
+  "metrics": {
+    "train": {
+      "accuracy": 0.7458,
+      "precision": 0.67,
+      "recall": 0.332,
+      "f1": 0.444
+    },
+    "test": {
+      "accuracy": 0.733,
+      "precision": 0.6883,
+      "recall": 0.3262,
+      "f1": 0.4426
+    }
+  },
+  "version": "1.0"
+}

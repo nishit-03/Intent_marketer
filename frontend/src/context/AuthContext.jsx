@@ -1,0 +1,98 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('im_token'));
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (token) {
+      fetchUser();
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
+
+  async function fetchUser() {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+      } else {
+        logout();
+      }
+    } catch {
+      logout();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function login(email, password) {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    localStorage.setItem('im_token', data.token);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }
+
+  async function signup(formData) {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    localStorage.setItem('im_token', data.token);
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  }
+
+  function logout() {
+    localStorage.removeItem('im_token');
+    setToken(null);
+    setUser(null);
+  }
+
+  // Authenticated fetch helper
+  async function authFetch(url, options = {}) {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...options.headers,
+      },
+    });
+    if (res.status === 401) {
+      logout();
+      throw new Error('Session expired');
+    }
+    return res;
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, authFetch }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
+}
