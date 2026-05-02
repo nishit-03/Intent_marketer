@@ -50,7 +50,7 @@ const adSchema = new mongoose.Schema({
     attributes: [{ type: String }],
     target_intent: {
       type: String,
-      enum: ['browsing', 'exploring', 'comparing', 'buying', ''],
+      enum: ['browsing', 'exploring', 'comparing', 'buying', 'comparison shopper', 'potential buyer', ''],
       default: '',
     },
     keywords: [{ type: String }],

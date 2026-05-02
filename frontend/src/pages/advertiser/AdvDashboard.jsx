@@ -1,33 +1,41 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell
+} from 'recharts';
 import { useAuth } from '../../context/AuthContext';
 
-const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6'];
-const categories = ['tech', 'finance', 'travel', 'health', 'education', 'ecommerce'];
+const COLORS = ['#6366f1', '#3b82f6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+const STATUS_COLORS = { active: '#22c55e', processing: '#f59e0b', paused: '#94a3b8', failed: '#ef4444' };
 
 export default function AdvDashboard() {
   const { authFetch, user } = useAuth();
-  const [ads, setAds] = useState([]);
-  const [selectedAd, setSelectedAd] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [timeline, setTimeline] = useState([]);
+  const [topAds, setTopAds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
-  const [form, setForm] = useState({
-    title: '', description: '', category: 'tech', image_url: '', cta_text: 'Learn More', cta_url: '',
-  });
+  const [timeRange, setTimeRange] = useState('14d');
 
   useEffect(() => {
-    loadAds();
-    const interval = setInterval(loadAds, 5000);
+    loadData();
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [timeRange]);
 
-  async function loadAds() {
+  async function loadData() {
+    const days = timeRange.replace('d', '');
     try {
-      const res = await authFetch('/api/ads');
-      if (res.ok) setAds(await res.json());
+      const [statsRes, timelineRes, topAdsRes] = await Promise.all([
+        authFetch('/api/advertiser/stats'),
+        authFetch(`/api/advertiser/timeline?days=${days}`),
+        authFetch('/api/advertiser/top-ads'),
+      ]);
+      setStats(await statsRes.json());
+      setTimeline(await timelineRes.json());
+      setTopAds(await topAdsRes.json());
     } catch (err) {
       console.error(err);
     } finally {
@@ -35,176 +43,251 @@ export default function AdvDashboard() {
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSubmitting(true);
-    setMessage('');
-    try {
-      const res = await authFetch('/api/ads', {
-        method: 'POST',
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage(data.message);
-        setShowForm(false);
-        setForm({ title: '', description: '', category: 'tech', image_url: '', cta_text: 'Learn More', cta_url: '' });
-        loadAds();
-      } else {
-        setMessage(data.error);
-      }
-    } catch (err) {
-      setMessage(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+  if (loading) {
+    return (
+      <div className="p-8 space-y-8 animate-pulse">
+        <div className="h-48 bg-gray-100 rounded-3xl" />
+        <div className="grid grid-cols-3 gap-6">
+          <div className="h-64 bg-gray-100 rounded-3xl col-span-2" />
+          <div className="h-64 bg-gray-100 rounded-3xl" />
+        </div>
+      </div>
+    );
   }
 
-  const statusColors = {
-    active: 'bg-green-50 text-green-700',
-    processing: 'bg-yellow-50 text-yellow-700',
-    paused: 'bg-gray-100 text-gray-500',
-    failed: 'bg-red-50 text-red-700',
+  const MiniStat = ({ label, value, accent }) => (
+    <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-3">
+      <p className={`text-2xl font-bold ${accent || ''}`}>{value}</p>
+      <p className="text-[10px] text-gray-400 mt-0.5">{label}</p>
+    </div>
+  );
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 px-4 py-3 rounded-2xl shadow-2xl">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1.5">{label}</p>
+          {payload.map((p, i) => (
+            <p key={i} className="text-sm font-bold" style={{ color: p.color }}>
+              {p.name}: {p.value?.toLocaleString?.() ?? p.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
-  const totalImpressions = ads.length * 150; // Simulated aggregate
-  const totalClicks = Math.floor(totalImpressions * 0.08);
+  // Status pie chart data
+  const statusData = stats?.statusCounts
+    ? Object.entries(stats.statusCounts).filter(([, v]) => v > 0).map(([k, v]) => ({ name: k, value: v, fill: STATUS_COLORS[k] }))
+    : [];
 
-  // Category distribution
-  const catDist = categories.map(cat => ({
-    name: cat,
-    count: ads.filter(a => a.category === cat).length,
-  })).filter(c => c.count > 0);
+  // Category bar chart data
+  const categoryData = stats?.categoryCounts
+    ? Object.entries(stats.categoryCounts).map(([k, v]) => ({ name: k.charAt(0).toUpperCase() + k.slice(1), count: v }))
+    : [];
+
+  // Trend calc
+  const recentDays = timeline.slice(-7);
+  const priorDays = timeline.slice(-14, -7);
+  const recentImp = recentDays.reduce((s, d) => s + d.impressions, 0);
+  const priorImp = priorDays.reduce((s, d) => s + d.impressions, 0);
+  const impTrend = priorImp > 0 ? Math.round(((recentImp - priorImp) / priorImp) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="p-6 lg:p-8 space-y-8 bg-[#fafafa] min-h-screen">
+      {/* Welcome Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-8 text-white relative overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #0a0e17, #1a1a3e)' }}>
-        <h1 className="text-2xl font-bold mb-1">Welcome, {user?.name}</h1>
-        <p className="text-blue-300 text-sm">{user?.company_name || 'Advertiser'} Dashboard</p>
-        <div className="flex gap-4 mt-5">
-          <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-bold">{ads.length}</p><p className="text-[10px] text-gray-400">Total Ads</p></div>
-          <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-bold">{ads.filter(a => a.status === 'active').length}</p><p className="text-[10px] text-gray-400">Active</p></div>
-          <div className="bg-white/10 rounded-xl px-5 py-3"><p className="text-2xl font-bold text-green-400">{ads.filter(a => a.status === 'processing').length}</p><p className="text-[10px] text-gray-400">Processing</p></div>
+        className="rounded-[32px] p-8 text-white relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0a0e17 0%, #0f1428 50%, #1a0a28 100%)' }}>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/8 blur-[100px] -mr-48 -mt-48" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[80px] -ml-32 -mb-32" />
+        <div className="relative">
+          <h1 className="text-2xl font-bold mb-1">Welcome back, {user?.name}</h1>
+          <p className="text-indigo-400 text-sm font-medium">{stats?.advertiserName || user?.company_name} — Advertiser Dashboard</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
+            <MiniStat label="Total Ads" value={stats?.totalAds || 0} />
+            <MiniStat label="Impressions" value={(stats?.totalImpressions || 0).toLocaleString()} />
+            <MiniStat label="Clicks" value={(stats?.totalClicks || 0).toLocaleString()} />
+            <MiniStat label="Avg CTR" value={`${stats?.ctr || 0}%`} />
+            <MiniStat label="Est. Spend" value={`$${stats?.estimatedSpend?.toFixed(2) || '0.00'}`} accent="text-indigo-400" />
+          </div>
         </div>
       </motion.div>
 
-      {/* Create Ad Button + Form */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-base font-semibold text-gray-900">Your Ads</h3>
-        <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all">
-          {showForm ? 'Cancel' : '+ Submit New Ad'}
-        </button>
+      {/* Performance Chart + Status Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="lg:col-span-2 bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Performance Overview</h3>
+              <p className="text-sm text-gray-400">Impressions and clicks trend</p>
+            </div>
+            <div className="flex bg-gray-50 p-1 rounded-xl">
+              {['7d', '14d', '30d'].map(range => (
+                <button key={range} onClick={() => setTimeRange(range)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${timeRange === range ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={timeline}>
+                <defs>
+                  <linearGradient id="colorImpAdv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="colorClkAdv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.12} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} tickFormatter={v => v.slice(5)} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                <Tooltip content={<CustomTooltip />} />
+                <Area type="monotone" dataKey="impressions" name="Impressions" stroke="#6366f1" strokeWidth={2.5} fill="url(#colorImpAdv)" dot={false} />
+                <Area type="monotone" dataKey="clicks" name="Clicks" stroke="#3b82f6" strokeWidth={2.5} fill="url(#colorClkAdv)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center gap-6 mt-4 justify-center">
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-indigo-500" /><span className="text-xs text-gray-500">Impressions</span></div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-blue-500" /><span className="text-xs text-gray-500">Clicks</span></div>
+            {impTrend !== 0 && <span className={`text-xs font-semibold ${impTrend > 0 ? 'text-green-600' : 'text-red-500'}`}>{impTrend > 0 ? '+' : ''}{impTrend}% vs prior</span>}
+          </div>
+        </motion.div>
+
+        {/* Status Breakdown */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+          className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-1">Ad Status</h3>
+          <p className="text-sm text-gray-400 mb-6">Current ad states</p>
+          {statusData.length > 0 ? (
+            <>
+              <div className="h-[180px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" animationBegin={0} animationDuration={800}>
+                      {statusData.map((entry, i) => <Cell key={i} fill={entry.fill} stroke="none" />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-2 mt-4">
+                {statusData.map(s => (
+                  <div key={s.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: s.fill }} />
+                      <span className="text-sm text-gray-600 capitalize">{s.name}</span>
+                    </div>
+                    <span className="text-sm font-bold text-gray-900">{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <p className="text-3xl mb-2">📭</p>
+              <p className="text-sm">No ads yet</p>
+            </div>
+          )}
+          <button onClick={() => navigate('/adv/create')}
+            className="w-full mt-6 py-2.5 bg-gradient-to-r from-indigo-500 to-blue-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all">
+            + Create New Ad
+          </button>
+        </motion.div>
       </div>
 
-      <AnimatePresence>
-        {showForm && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-            className="bg-white rounded-2xl p-6 border border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Submit New Ad</h3>
-            <p className="text-xs text-gray-400 mb-4">Our AI (Groq LLaMA) will automatically analyze your ad and extract targeting features.</p>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Ad Title *</label>
-                  <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Category *</label>
-                  <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    {categories.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Description *</label>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required rows={3}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Image URL</label>
-                  <input type="url" value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">CTA Text</label>
-                  <input type="text" value={form.cta_text} onChange={e => setForm({ ...form, cta_text: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">CTA URL</label>
-                  <input type="url" value={form.cta_url} onChange={e => setForm({ ...form, cta_url: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="https://yoursite.com/product" />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button type="submit" disabled={submitting}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-xl text-sm font-semibold hover:shadow-lg transition-all disabled:opacity-50">
-                  {submitting ? 'Processing...' : 'Submit for AI Analysis'}
-                </button>
-              </div>
-            </form>
-            {message && <p className="mt-3 text-sm text-green-600">{message}</p>}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Ads List */}
-      <div className="space-y-3">
-        {ads.map((ad, i) => (
-          <motion.div key={ad.ad_id || ad._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }} onClick={() => setSelectedAd(selectedAd?.ad_id === ad.ad_id ? null : ad)}
-            className={`bg-white p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${selectedAd?.ad_id === ad.ad_id ? 'border-blue-300 bg-blue-50/20' : 'border-gray-100'}`}>
-            <div className="flex items-center gap-4">
-              {ad.image_url && <img src={ad.image_url} alt="" className="w-16 h-12 rounded-lg object-cover" />}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <h4 className="text-sm font-semibold text-gray-900 truncate">{ad.title}</h4>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${statusColors[ad.status] || ''}`}>{ad.status}</span>
-                </div>
-                <p className="text-xs text-gray-400 truncate">{ad.description}</p>
-              </div>
-              <span className="px-2 py-0.5 bg-gray-100 rounded-full text-[10px] capitalize">{ad.category}</span>
+      {/* Category Distribution + Top Performing Ads */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Category Distribution */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+          className="bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-900 mb-1">Category Distribution</h3>
+          <p className="text-sm text-gray-400 mb-6">Your ads by category</p>
+          {categoryData.length > 0 ? (
+            <div className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categoryData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f3f4f6" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#6b7280' }} width={80} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="count" name="Ads" radius={[0, 8, 8, 0]} barSize={20}>
+                    {categoryData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
+          ) : (
+            <div className="text-center py-8 text-gray-400 text-sm">No data available</div>
+          )}
+        </motion.div>
 
-            <AnimatePresence>
-              {selectedAd?.ad_id === ad.ad_id && ad.extracted_features && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                  className="mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-xs font-semibold text-blue-600 mb-2">AI-Extracted Features</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[['Product', ad.extracted_features.product], ['Brand', ad.extracted_features.brand], ['Target Intent', ad.extracted_features.target_intent], ['Price Range', ad.extracted_features.price_range]].map(([l, v]) => v && (
-                      <div key={l} className="px-3 py-1.5 bg-gray-50 rounded-lg">
-                        <span className="text-[10px] text-gray-400">{l}</span>
-                        <p className="text-xs font-medium capitalize">{v}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {ad.extracted_features.keywords?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {ad.extracted_features.keywords.map(kw => (
-                        <span key={kw} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px]">{kw}</span>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
-        {ads.length === 0 && !loading && (
-          <div className="text-center py-16 text-gray-400">
-            <p className="text-4xl mb-3">📭</p>
-            <p className="text-sm">No ads yet. Click "Submit New Ad" to get started!</p>
+        {/* Top Performing Ads */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+          className="lg:col-span-2 bg-white rounded-[32px] p-8 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">Top Performing Ads</h3>
+              <p className="text-sm text-gray-400">Ranked by click-through rate</p>
+            </div>
+            <button onClick={() => navigate('/adv/analytics')} className="text-indigo-600 text-xs font-semibold hover:underline">See All →</button>
           </div>
-        )}
+          <div className="space-y-3">
+            {topAds.slice(0, 5).map((ad, i) => (
+              <div key={ad.ad_id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                <span className="text-xs text-gray-400 w-6 font-bold">{i + 1}</span>
+                {ad.image_url && <img src={ad.image_url} alt="" className="w-12 h-9 rounded-lg object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-gray-900 truncate">{ad.title}</h4>
+                  <p className="text-[10px] text-gray-400 capitalize">{ad.category}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-900">{ad.ctr}%</p>
+                  <p className="text-[10px] text-gray-400">{ad.impressions.toLocaleString()} imp</p>
+                </div>
+                <div className={`w-2 h-2 rounded-full ${ad.status === 'active' ? 'bg-green-500' : 'bg-gray-300'}`} />
+              </div>
+            ))}
+            {topAds.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <p className="text-3xl mb-2">📊</p>
+                <p className="text-sm">No performance data yet. Create ads to start tracking!</p>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          onClick={() => navigate('/adv/create')}
+          className="bg-gradient-to-br from-indigo-500 to-blue-600 rounded-[24px] p-6 text-white cursor-pointer hover:shadow-xl transition-all">
+          <p className="text-2xl mb-2">➕</p>
+          <h4 className="font-bold">Create New Ad</h4>
+          <p className="text-xs text-indigo-200 mt-1">AI-powered feature extraction</p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+          onClick={() => navigate('/adv/analytics')}
+          className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-[24px] p-6 text-white cursor-pointer hover:shadow-xl transition-all">
+          <p className="text-2xl mb-2">📈</p>
+          <h4 className="font-bold">View Analytics</h4>
+          <p className="text-xs text-blue-200 mt-1">Per-ad performance & intent analysis</p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
+          className="bg-white rounded-[24px] p-6 border border-gray-100 shadow-sm">
+          <p className="text-2xl mb-2">🤖</p>
+          <h4 className="font-bold text-gray-900">AI Analysis</h4>
+          <p className="text-xs text-gray-400 mt-1">Every ad is analyzed by Groq LLaMA for optimal targeting</p>
+        </motion.div>
       </div>
     </div>
   );

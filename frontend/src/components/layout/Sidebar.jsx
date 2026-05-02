@@ -9,10 +9,14 @@ const navConfigs = {
     { path: '/admin/ranking', label: 'Ad Ranking', icon: '🏆' },
   ],
   advertiser: [
-    { path: '/adv', label: 'My Ads', icon: '📢' },
+    { path: '/adv', label: 'Dashboard', icon: '📊' },
+    { path: '/adv/create', label: 'Create Ad', icon: '➕' },
+    { path: '/adv/analytics', label: 'Analytics', icon: '📈' },
   ],
   publisher: [
     { path: '/pub', label: 'Dashboard', icon: '💰' },
+    { path: '/pub/analytics', label: 'Analytics', icon: '📊' },
+    { path: '/pub/integration', label: 'Integration', icon: '🔌' },
   ],
 };
 

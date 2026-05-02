@@ -30,7 +30,7 @@ const sessionSchema = new mongoose.Schema({
   intent_score: { type: Number, default: 0, min: 0, max: 1 },
   intent_stage: {
     type: String,
-    enum: ['browsing', 'exploring', 'comparing', 'buying'],
+    enum: ['browsing', 'exploring', 'comparing', 'buying', 'comparison shopper', 'potential buyer'],
     default: 'browsing',
   },
   categories_viewed: [{ type: String }],

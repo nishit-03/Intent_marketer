@@ -130,7 +130,7 @@ router.get('/by-category', async (req, res) => {
  */
 router.get('/intent-ctr', async (req, res) => {
   try {
-    const stages = ['browsing', 'exploring', 'comparing', 'buying'];
+    const stages = ['browsing', 'exploring', 'comparison shopper', 'potential buyer'];
     const result = [];
 
     for (const stage of stages) {

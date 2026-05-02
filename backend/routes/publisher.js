@@ -175,4 +175,80 @@ router.get('/timeline', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/publisher/analytics — Advanced analytics for dashboard
+ */
+router.get('/analytics', async (req, res) => {
+  try {
+    const publisherId = req.user.publisher_id;
+
+    // 1. Intent Stage Distribution
+    const intentStages = await Interaction.aggregate([
+      { $match: { 'session_features.publisher_id': publisherId } },
+      { $group: { _id: '$session_features.intent_stage', count: { $sum: 1 } } }
+    ]);
+
+    // 2. Category Performance (Revenue & CTR)
+    const categoryStats = await Interaction.aggregate([
+      { $match: { 'session_features.publisher_id': publisherId } },
+      {
+        $group: {
+          _id: '$ad_features.category',
+          impressions: { $sum: { $cond: [{ $eq: ['$event_type', 'impression'] }, 1, 0] } },
+          clicks: { $sum: { $cond: [{ $eq: ['$event_type', 'click'] }, 1, 0] } }
+        }
+      },
+      {
+        $project: {
+          category: '$_id',
+          impressions: 1,
+          clicks: 1,
+          revenue: { 
+            $add: [
+              { $multiply: [{ $divide: ['$impressions', 1000] }, CPM_RATE] },
+              { $multiply: ['$clicks', CPC_RATE] }
+            ]
+          },
+          ctr: {
+            $cond: [
+              { $gt: ['$impressions', 0] },
+              { $multiply: [{ $divide: ['$clicks', '$impressions'] }, 100] },
+              0
+            ]
+          }
+        }
+      },
+      { $sort: { revenue: -1 } }
+    ]);
+
+    // 3. Engagement Metrics
+    const engagement = await Interaction.aggregate([
+      { $match: { 'session_features.publisher_id': publisherId } },
+      {
+        $group: {
+          _id: null,
+          avgScrollDepth: { $avg: '$session_features.scroll_depth' },
+          avgRereadScore: { $avg: '$session_features.reread_score' },
+          avgTimeSpent: { $avg: '$session_features.time_spent' }
+        }
+      }
+    ]);
+
+    res.json({
+      intentDistribution: intentStages.map(s => ({ stage: s._id || 'unknown', value: s.count })),
+      categoryPerformance: categoryStats.map(c => ({
+        category: c.category || 'Uncategorized',
+        revenue: parseFloat(c.revenue.toFixed(2)),
+        impressions: c.impressions,
+        clicks: c.clicks,
+        ctr: parseFloat(c.ctr.toFixed(2))
+      })),
+      engagement: engagement[0] || { avgScrollDepth: 0, avgRereadScore: 0, avgTimeSpent: 0 }
+    });
+  } catch (error) {
+    console.error('Analytics Error:', error);
+    res.status(500).json({ error: 'Failed to load analytics' });
+  }
+});
+
 module.exports = router;

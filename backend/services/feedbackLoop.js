@@ -66,7 +66,7 @@ async function recordClick(sessionId, adId, intentStage) {
       {
         $inc: {
           clicks: 1,
-          [`intent_stages.${intentStage || 'browsing'}`]: 1,
+          [`intent_stages.${(intentStage || 'browsing').replace(' ', '_')}`]: 1,
         },
         $setOnInsert: { ad_id: adId, date: today },
       },

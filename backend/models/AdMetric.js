@@ -25,8 +25,8 @@ const adMetricSchema = new mongoose.Schema({
   intent_stages: {
     browsing: { type: Number, default: 0 },
     exploring: { type: Number, default: 0 },
-    comparing: { type: Number, default: 0 },
-    buying: { type: Number, default: 0 },
+    comparison_shopper: { type: Number, default: 0 },
+    potential_buyer: { type: Number, default: 0 },
   },
 });
 

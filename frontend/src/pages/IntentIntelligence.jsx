@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import * as api from '../services/api';
 
-const stages = ['browsing', 'exploring', 'comparing', 'buying'];
+const stages = ['browsing', 'exploring', 'comparison shopper', 'potential buyer'];
 const stageDescriptions = {
   browsing: 'User is casually reading content with no specific purchase intent.',
   exploring: 'User is actively looking for information, discovering options.',
-  comparing: 'User is comparing products, reading reviews and alternatives.',
-  buying: 'User shows strong purchase signals — ready to convert.',
+  'comparison shopper': 'User is comparing products, reading reviews and alternatives.',
+  'potential buyer': 'User shows strong purchase signals — ready to convert.',
 };
-const stageEmoji = { browsing: '👀', exploring: '🔍', comparing: '⚖️', buying: '💰' };
+const stageEmoji = { browsing: '👀', exploring: '🔍', 'comparison shopper': '⚖️', 'potential buyer': '💰' };
 
 export default function IntentIntelligence() {
   const [sessions, setSessions] = useState([]);
@@ -54,7 +54,7 @@ export default function IntentIntelligence() {
               <p className="text-[10px] text-purple-200">Intent Stages Active</p>
             </div>
             <div className="bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-              <p className="text-2xl font-bold">{sessions.find(s => s._id === 'buying')?.count || 0}</p>
+              <p className="text-2xl font-bold">{sessions.find(s => s._id === 'potential buyer')?.count || 0}</p>
               <p className="text-[10px] text-purple-200">Buying Intent</p>
             </div>
           </div>

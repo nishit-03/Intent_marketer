@@ -4,7 +4,11 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import Dashboard from './pages/Dashboard';
 import AdvDashboard from './pages/advertiser/AdvDashboard';
+import AdvCreateAd from './pages/advertiser/AdvCreateAd';
+import AdvAnalytics from './pages/advertiser/AdvAnalytics';
 import PubDashboard from './pages/publisher/PubDashboard';
+import PubAnalytics from './pages/publisher/PubAnalytics';
+import PubIntegration from './pages/publisher/PubIntegration';
 import IntentIntelligence from './pages/IntentIntelligence';
 import AdRankingPanel from './pages/AdRankingPanel';
 import Layout from './components/layout/Layout';
@@ -38,9 +42,13 @@ function AppRoutes() {
 
       {/* Advertiser routes */}
       <Route path="/adv" element={<ProtectedRoute roles={['advertiser']}><Layout role="advertiser"><AdvDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/adv/create" element={<ProtectedRoute roles={['advertiser']}><Layout role="advertiser"><AdvCreateAd /></Layout></ProtectedRoute>} />
+      <Route path="/adv/analytics" element={<ProtectedRoute roles={['advertiser']}><Layout role="advertiser"><AdvAnalytics /></Layout></ProtectedRoute>} />
 
       {/* Publisher routes */}
       <Route path="/pub" element={<ProtectedRoute roles={['publisher']}><Layout role="publisher"><PubDashboard /></Layout></ProtectedRoute>} />
+      <Route path="/pub/analytics" element={<ProtectedRoute roles={['publisher']}><Layout role="publisher"><PubAnalytics /></Layout></ProtectedRoute>} />
+      <Route path="/pub/integration" element={<ProtectedRoute roles={['publisher']}><Layout role="publisher"><PubIntegration /></Layout></ProtectedRoute>} />
 
       {/* Default redirect */}
       <Route path="*" element={<Navigate to="/login" />} />

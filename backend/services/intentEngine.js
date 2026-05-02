@@ -130,12 +130,12 @@ function determineIntentStage(score, session) {
   const hasProducts = (session.product_views || 0) >= 2;
   const highEngagement = (session.interaction_depth || 0) > 0.6;
 
-  // Override: if user is actively comparing products, bump to 'comparing' even with lower score
-  if (hasComparisons && score >= 0.35) return 'comparing';
-  if (hasProducts && highEngagement && score >= 0.45) return 'buying';
+  // Override: if user is actively comparing products, bump to 'comparison shopper' even with lower score
+  if (hasComparisons && score >= 0.35) return 'comparison shopper';
+  if (hasProducts && highEngagement && score >= 0.45) return 'potential buyer';
 
-  if (score >= 0.70) return 'buying';
-  if (score >= 0.45) return 'comparing';
+  if (score >= 0.70) return 'potential buyer';
+  if (score >= 0.45) return 'comparison shopper';
   if (score >= 0.20) return 'exploring';
   return 'browsing';
 }

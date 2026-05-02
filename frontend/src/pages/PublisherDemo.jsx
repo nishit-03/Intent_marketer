@@ -30,10 +30,10 @@ function IntentPanel({ intent, session }) {
   const stageColors = {
     browsing: { bg: 'bg-gray-100', text: 'text-gray-600', fill: 'bg-gray-400' },
     exploring: { bg: 'bg-blue-100', text: 'text-blue-600', fill: 'bg-blue-500' },
-    comparing: { bg: 'bg-amber-100', text: 'text-amber-600', fill: 'bg-amber-500' },
-    buying: { bg: 'bg-green-100', text: 'text-green-600', fill: 'bg-green-500' },
+    'comparison shopper': { bg: 'bg-amber-100', text: 'text-amber-600', fill: 'bg-amber-500' },
+    'potential buyer': { bg: 'bg-green-100', text: 'text-green-600', fill: 'bg-green-500' },
   };
-  const stages = ['browsing', 'exploring', 'comparing', 'buying'];
+  const stages = ['browsing', 'exploring', 'comparison shopper', 'potential buyer'];
   const currentStage = intent?.stage || 'browsing';
   const currentIdx = stages.indexOf(currentStage);
   const sc = stageColors[currentStage];

@@ -87,7 +87,7 @@ function filterAds(ads, session) {
 
       // ── Intent stage alignment ──
       const adTargetIntent = features.target_intent || 'browsing';
-      const stageOrder = ['browsing', 'exploring', 'comparing', 'buying'];
+      const stageOrder = ['browsing', 'exploring', 'comparison shopper', 'potential buyer'];
       const sessionStageIdx = stageOrder.indexOf(intentStage);
       const adStageIdx = stageOrder.indexOf(adTargetIntent);
 
@@ -138,11 +138,11 @@ function filterAds(ads, session) {
       }
 
       // ── Page type alignment ──
-      if (sessionPageTypes.includes('product') && adTargetIntent === 'buying') {
+      if (sessionPageTypes.includes('product') && adTargetIntent === 'potential buyer') {
         relevance += 0.06;
         reasons.push('User on product pages');
       }
-      if (sessionPageTypes.includes('comparison') && (adTargetIntent === 'comparing' || adTargetIntent === 'buying')) {
+      if (sessionPageTypes.includes('comparison') && (adTargetIntent === 'comparison shopper' || adTargetIntent === 'potential buyer')) {
         relevance += 0.06;
         reasons.push('User comparing products');
       }
@@ -351,7 +351,7 @@ async function rankAds(ads, session, topN = 3) {
     // Intent velocity boost (rapidly increasing intent = show more action-oriented ads)
     if (intentVelocity > 0.05) {
       const adTarget = item.ad.extracted_features?.target_intent || 'browsing';
-      if (adTarget === 'buying' || adTarget === 'comparing') {
+      if (adTarget === 'potential buyer' || adTarget === 'comparison shopper') {
         const velocityBoost = Math.min(intentVelocity * 0.5, 0.10);
         item.finalScore += velocityBoost;
         item.reasons.push(`Velocity boost (+${velocityBoost.toFixed(2)})`);

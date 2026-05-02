@@ -28,6 +28,7 @@ app.use('/api/track', require('./routes/track'));
 app.use('/api/ads', require('./routes/ads'));
 app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/publisher', require('./routes/publisher'));
+app.use('/api/advertiser', require('./routes/advertiser'));
 app.use('/api/retrain', require('./routes/retrain'));
 
 // Health check

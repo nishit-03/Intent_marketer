@@ -279,8 +279,8 @@ export default function Dashboard() {
           <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
             <p className="text-xs text-purple-600 font-medium mb-1">Recommendation</p>
             <p className="text-sm text-gray-700">
-              {intentCTR.find(d => d.stage === 'buying')?.ctr > 0
-                ? `Buying intent shows ${intentCTR.find(d => d.stage === 'buying')?.ctr}% CTR — optimize ads for purchase intent.`
+              {intentCTR.find(d => d.stage === 'potential buyer')?.ctr > 0
+                ? `Buying intent shows ${intentCTR.find(d => d.stage === 'potential buyer')?.ctr}% CTR — optimize ads for purchase intent.`
                 : 'Enable more session tracking to unlock insights.'}
             </p>
           </div>
